@@ -1,22 +1,3 @@
-#
-# Dockerfile for an Arti Debian container.
-#
-# Copyright (C) 2025 The Tor Project, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published
-# by the Free Software Foundation, either version 3 of the License,
-# or any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-
 ARG IMAGE_TAG=bookworm
 FROM docker.io/rust:slim-${IMAGE_TAG} AS build
 
@@ -32,7 +13,6 @@ RUN apt-get update && \
 RUN cargo install arti --features=onion-service-service
 
 FROM containers.torproject.org/tpo/tpa/base-images/debian:${IMAGE_TAG} AS arti
-MAINTAINER Silvio Rhatto <rhatto@torproject.org>
 
 ENV APP="arti"
 ENV APP_BASE="/srv/"

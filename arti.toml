@@ -1,0 +1,3 @@
+[proxy]
+socks_listen = 9150
+dns_listen = 1053

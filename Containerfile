@@ -10,7 +10,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Arti
-RUN cargo install arti --features=onion-service-service
+RUN cargo install arti --features=static-sqlite
 
 FROM containers.torproject.org/tpo/tpa/base-images/debian:${IMAGE_TAG} AS arti
 
@@ -33,11 +33,6 @@ COPY --from=build /usr/local/cargo/bin/arti /usr/local/bin/
 RUN groupadd -r -g ${CONTAINER_GID} ${ARTI_USER} && \
     useradd --no-log-init -u ${CONTAINER_UID} -g ${ARTI_USER} ${ARTI_USER} && \
     mkdir -p /home/${ARTI_USER} && chown ${ARTI_USER}: /home/${ARTI_USER}
-
-RUN mkdir -p ${APP_BASE}/${APP}/configs
-COPY onionservice.toml ${APP_BASE}/${APP}/configs
-RUN chown -R ${ARTI_USER}: ${APP_BASE}/${APP}
-RUN chmod 640 ${APP_BASE}/${APP}/configs/onionservice.toml
 
 USER ${ARTI_USER}
 

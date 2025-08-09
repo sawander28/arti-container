@@ -1,26 +1,6 @@
-#
-# Dockerfile for an Arti Debian container.
-#
-# Copyright (C) 2025 The Tor Project, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published
-# by the Free Software Foundation, either version 3 of the License,
-# or any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-
 ARG IMAGE_TAG=bookworm
 FROM docker.io/rust:slim-${IMAGE_TAG} AS build
 
-# Install dependencies
 RUN apt-get update && \
     apt-get install -y \
     pkg-config \
@@ -28,12 +8,9 @@ RUN apt-get update && \
     libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Arti
 RUN cargo install arti --features=onion-service-service
 
 FROM containers.torproject.org/tpo/tpa/base-images/debian:${IMAGE_TAG} AS arti
-MAINTAINER Silvio Rhatto <rhatto@torproject.org>
-
 ENV APP="arti"
 ENV APP_BASE="/srv/"
 
@@ -42,7 +19,7 @@ ARG ARTI_USER="arti"
 ARG CONTAINER_UID="${CONTAINER_UID:-1000}"
 ARG CONTAINER_GID="${CONTAINER_GID:-1000}"
 
-ENV ARTI_CONFIG="${ARTI_CONFIG:-/srv/arti/configs/onionservice.toml}"
+ENV ARTI_CONFIG="${ARTI_CONFIG:-/srv/arti/configs/arti.toml}"
 
 RUN apt-get update && \
     apt-get install -y \
@@ -55,10 +32,10 @@ RUN groupadd -r -g ${CONTAINER_GID} ${ARTI_USER} && \
     mkdir -p /home/${ARTI_USER} && chown ${ARTI_USER}: /home/${ARTI_USER}
 
 RUN mkdir -p ${APP_BASE}/${APP}/configs
-COPY onionservice.toml ${APP_BASE}/${APP}/configs
+COPY arti.toml ${APP_BASE}/${APP}/configs
 RUN chown -R ${ARTI_USER}: ${APP_BASE}/${APP}
-RUN chmod 640 ${APP_BASE}/${APP}/configs/onionservice.toml
+RUN chmod 640 ${APP_BASE}/${APP}/configs/arti.toml
 
 USER ${ARTI_USER}
 
-ENTRYPOINT exec arti proxy -c ${ARTI_CONFIG}
+ENTRYPOINT exec arti -c ${ARTI_CONFIG} proxy

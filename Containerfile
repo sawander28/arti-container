@@ -8,7 +8,7 @@ RUN apt-get update && \
     libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN cargo install arti --features=onion-service-service
+RUN cargo install arti --features=static-sqlite
 
 FROM containers.torproject.org/tpo/tpa/base-images/debian:${IMAGE_TAG} AS arti
 ENV APP="arti"
@@ -19,7 +19,8 @@ ARG ARTI_USER="arti"
 ARG CONTAINER_UID="${CONTAINER_UID:-1000}"
 ARG CONTAINER_GID="${CONTAINER_GID:-1000}"
 
-ENV ARTI_CONFIG="${ARTI_CONFIG:-/srv/arti/configs/arti.toml}"
+ENV ARTI_CONFIG=${ARTI_CONFIG:-/srv/arti/configs/arti.toml}
+ENV ARTI_VOLUME=${ARTI_VOLUME:-/var/lib/arti}
 
 RUN apt-get update && \
     apt-get install -y \
@@ -35,6 +36,13 @@ RUN mkdir -p ${APP_BASE}/${APP}/configs
 COPY arti.toml ${APP_BASE}/${APP}/configs
 RUN chown -R ${ARTI_USER}: ${APP_BASE}/${APP}
 RUN chmod 640 ${APP_BASE}/${APP}/configs/arti.toml
+
+RUN mkdir -p /var/lib/arti
+COPY arti.toml /var/lib/arti
+
+EXPORT 9050 1053
+
+VOLUME ["/var/lib/arti"]
 
 USER ${ARTI_USER}
 

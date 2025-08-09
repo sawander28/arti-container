@@ -1,10 +1,5 @@
 #!/bin/sh
 
-: ${ARTI_CONFIG:=$HOME/.config/arti/arti.toml}
-: ${ARTI_CACHE:=$HOME/.cache}
-: ${ARTI_LOCAL_DATA:=$HOME/.local/share}
-export ARTI_CONFIG ARTI_CACHE ARTI_LOCAL_DATA
+. ./env.sh
 
-#podman build -f Containerfile -t arti-proxy
-
-podman run -ti arti-proxy
+podman run -t arti-proxy

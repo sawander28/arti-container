@@ -1,5 +1,3 @@
 #!/bin/sh
 
-. ./env.sh
-
-podman build -t arti-proxy .
+podman build -f Containerfile -t arti-proxy

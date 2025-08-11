@@ -1,0 +1,163 @@
+# syntax=docker/dockerfile:1
+# -*- mode: dockerfile -*-
+
+ARG ALPINE=docker.io/alpine:latest
+ARG RUST_ALPINE=docker.io/rust:alpine 
+# repository stage
+FROM "${RUST_ALPINE}" AS repository
+
+ARG TAG="HEAD"
+ARG ARTI_GIT_URL="https://gitlab.torproject.org/tpo/core/arti.git"
+ARG REPOSITORY_PACKAGES="git ca-certificates"
+
+# install dependencies for getting the source code
+# hadolint ignore=SC2086
+RUN --mount=type=cache,target="/var/cache/apk",sharing=locked \
+	set -xe \
+	&& apk add --cache-dir /var/cache/apk ${REPOSITORY_PACKAGES}
+
+WORKDIR /root/src
+
+# clone the repository
+RUN set -xe \
+    && git init --quiet \
+	&& git remote add --tags origin ${ARTI_GIT_URL} \
+	&& git fetch --quiet --depth 1 origin ${TAG} \
+	&& git checkout --quiet FETCH_HEAD
+
+
+# environment stage
+FROM repository AS environment
+
+ARG CARGO_HOME="/usr/local/cargo/"
+ARG CARGO_TARGET_DIR="/root"
+ARG BUILD_PACKAGES="\
+	pkgconfig \
+	musl-dev \
+	openssl-dev \
+	sqlite-dev"
+ARG RUSTFLAGS="\
+	--remap-path-prefix /repository=./ \
+	--remap-path-prefix ${CARGO_HOME}=.cargo/ \
+	-C target-feature=-crt-static"
+
+# environment variables
+ENV LANG="C.UTF-8"
+ENV CARGO_HOME="${CARGO_HOME}"
+ENV CARGO_TARGET_DIR="${CARGO_TARGET_DIR}"
+ENV RUSTFLAGS="${RUSTFLAGS}"
+
+# add build dependencies
+# hadolint ignore=SC2086
+RUN --mount=type=cache,target="/var/cache/apk",sharing=locked \
+	set -xe \
+	&& apk add --cache-dir /var/cache/apk ${BUILD_PACKAGES}
+
+# copy licences using [L] ensures COPY don't fail if the file doesn't exist
+COPY --from=repository --chmod=444 \
+	"/root/src/[G]PL-3" \
+	"/root/src/[L]GPL-3" \
+	"/root/src/[L]ICENSE" \
+	"/root/src/[L]ICENSE-MIT" \
+	"/root/src/[L]ICENSE-APACHE" \
+	/usr/share/licences/arti/
+
+
+# configure stage
+FROM environment AS configure
+
+ARG CARGO_FETCH_ENV
+ARG CARGO_HOME="/usr/local/cargo/"
+ARG CARGO_FETCH_FLAGS="--color=never --locked"
+
+# fetch the rust dependencies
+# hadolint ignore=SC2086
+RUN --mount=type=cache,target="${CARGO_HOME}/git",sharing=locked \
+    --mount=type=cache,target="${CARGO_HOME}/registry",sharing=locked \ 
+	set -xe \
+	&& ${CARGO_FETCH_ENV} cargo fetch ${CARGO_FETCH_FLAGS}
+
+
+# compile stage
+FROM configure AS compile
+
+ARG CARGO_BUILD_ENV
+ARG CARGO_HOME="/usr/local/cargo/"
+ARG CARGO_BUILD_FLAGS="\
+	--package arti \
+	--color=never \
+	--locked \
+	--offline \
+	--release"
+
+# build arti
+# hadolint ignore=SC2086
+RUN --mount=type=cache,target="${CARGO_HOME}/git",sharing=locked \
+    --mount=type=cache,target="${CARGO_HOME}/registry",sharing=locked \
+	set -xe \
+	&& ${CARGO_BUILD_ENV} cargo build ${CARGO_BUILD_FLAGS}
+
+
+# postcompile stage
+FROM compile AS postcompile
+
+ARG CARGO_TARGET_DIR="/root"
+
+# strip all symbols not needed by relocations for a smaller binary size
+RUN --network=none \
+	set -xe \
+	&& strip --strip-unneeded "${CARGO_TARGET_DIR}/release/arti"
+
+
+# clean stage
+FROM "${ALPINE}" AS clean
+
+ARG RUN_PACKAGES="\
+	sqlite-libs \
+	libgcc"
+ARG CARGO_TARGET_DIR="/root"
+ARG ARTI_GID=1000
+ARG ARTI_GROUP=arti
+ARG ARTI_UID=1000
+ARG ARTI_USER=arti
+
+# ensure arti binaries are available on $PATH
+ENV PATH="/usr/local/bin:$PATH"
+
+# add arti runtime dependencies
+# hadolint ignore=SC2086
+RUN --mount=type=cache,target="/var/cache/apk",sharing=locked \
+	set -xe \
+	&& apk add --cache-dir /var/cache/apk ${RUN_PACKAGES}
+
+# create user and group
+RUN --network=none \
+	set -xe \
+	&& addgroup -g "${ARTI_GID}" "${ARTI_GROUP}" \
+	&& adduser \
+		-h "/home/${ARTI_USER}" \
+		-G "${ARTI_GROUP}" \
+		-D \
+		-u "${ARTI_UID}" \
+		"${ARTI_USER}"
+
+# copy licences
+COPY --from=postcompile --chmod=444 /usr/share/licences/arti /usr/share/licences/arti
+
+# copy the compiled arti binary to the clean environment
+COPY --from=postcompile --chown="${ARTI_UID}:${ARTI_GID}" "${CARGO_TARGET_DIR}/release/arti" /usr/local/bin/arti
+
+
+# final stage
+FROM clean AS final
+
+ARG ARTI_GID=1000
+ARG ARTI_UID=1000
+ARG ARTI_USER=arti
+
+# switch to the created user:group so arti is not started as root
+USER "${ARTI_UID}:${ARTI_GID}"
+
+WORKDIR "/home/${ARTI_USER}"
+
+ENTRYPOINT [ "arti" ]

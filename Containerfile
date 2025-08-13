@@ -26,15 +26,16 @@ RUN apt-get update && \
 
 COPY --from=builder /usr/local/cargo/bin/arti /usr/local/bin/
 
-RUN groupadd -gid "${ARTI_GID}" "${ARTI_GROUP}" && \
+RUN groupadd --gid "${ARTI_GID}" "${ARTI_GROUP}" && \
     useradd \
         --home-dir "/home/${ARTI_USER}" \
         --create-home \
         --gid "${ARTI_GID}" \
         --uid "${ARTI_UID}" \
-        "${ARTI_USER}
+        "${ARTI_USER}"
 
 COPY arti.toml /home/${ARTI_USER}/arti.toml
+RUN chown -R ${ARTI_USER}:${ARTI_GROUP} /home/${ARTI_USER}
 RUN chmod 640 /home/${ARTI_USER}/arti.toml
 
 EXPOSE 9050 1053
@@ -43,4 +44,4 @@ USER "${ARTI_UID}:${ARTI_GID}"
 
 WORKDIR "/home/${ARTI_USER}"
 
-ENTRYPOINT ["arti proxy"]
+ENTRYPOINT exec arti proxy -c ${ARTI_CONFIG}

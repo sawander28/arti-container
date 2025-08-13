@@ -14,30 +14,33 @@ RUN cargo install arti --features=static-sqlite
 FROM containers.torproject.org/tpo/tpa/base-images/debian:trixie AS arti
 
 # UID and GID might be read-only values, so use non-conflicting ones
-ARG CONTAINER_UID="${CONTAINER_UID:-1000}"
-ARG CONTAINER_GID="${CONTAINER_GID:-1000}"
+ARG ARTI_UID=1000
+ARG ARTI_GID=1000
+ARG ARTI_USER=arti
+ARG ARTI_GROUP=arti
 
 ENV ARTI_CONFIG="${ARTI_CONFIG:-/home/arti/arti.toml}"
 
 RUN apt-get update && \
-    apt-get install -y \
-    sqlite3
+    apt-get install -y sqlite3
 
 COPY --from=builder /usr/local/cargo/bin/arti /usr/local/bin/
 
-RUN groupadd -r -g ${CONTAINER_GID} arti && \
-    useradd --no-log-init -u ${CONTAINER_UID} -g arti arti && \
-    mkdir -p /home/arti && chown arti:arti /home/arti
+RUN groupadd -gid "${ARTI_GID}" "${ARTI_GROUP}" && \
+    useradd \
+        --home-dir "/home/${ARTI_USER}" \
+        --create-home \
+        --gid "${ARTI_GID}" \
+        --uid "${ARTI_UID}" \
+        "${ARTI_USER}
 
-RUN mkdir -p /home/arti
-COPY arti.toml /home/arti/arti.toml
-RUN chown -R arti:arti /home/arti
-RUN chmod 640 /home/arti/arti.toml
+COPY arti.toml /home/${ARTI_USER}/arti.toml
+RUN chmod 640 /home/${ARTI_USER}/arti.toml
 
-EXPOSE 9050
+EXPOSE 9050 1053
 
-VOLUME ["/home/arti"]
+USER "${ARTI_UID}:${ARTI_GID}"
 
-USER arti
+WORKDIR "/home/${ARTI_USER}"
 
-ENTRYPOINT exec arti -c /home/arti/arti.toml proxy
+ENTRYPOINT ["arti proxy"]

@@ -10,8 +10,8 @@
 socks_listen = "127.0.0.1:9050"
 
 # Port to use to listen for DNS requests.  0 means disabled.
-dns_listen = 0
-#dns_listen = "127.0.0.1:1053"
+#dns_listen = 0
+dns_listen = "127.0.0.1:1053"
 
 [logging]
 #console=info

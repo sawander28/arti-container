@@ -1,3 +1,3 @@
 #!/bin/sh
 
-podman build -f Containerfile -t arti-proxy
+podman build -f Containerfile -t arti-container

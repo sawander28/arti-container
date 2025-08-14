@@ -5,43 +5,38 @@ RUN apt-get update && \
     apt-get install -y \
     pkg-config \
     libssl-dev \
-    libsqlite3-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libsqlite3-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN cargo install arti --features=static-sqlite
 
 # production stage
 FROM containers.torproject.org/tpo/tpa/base-images/debian:trixie AS arti
 
-# UID and GID might be read-only values, so use non-conflicting ones
-ARG ARTI_UID=1000
-ARG ARTI_GID=1000
-ARG ARTI_USER=arti
-ARG ARTI_GROUP=arti
-
 ENV ARTI_CONFIG="${ARTI_CONFIG:-/home/arti/arti.toml}"
 
+WORKDIR "/home/arti"
+
 RUN apt-get update && \
-    apt-get install -y sqlite3
+    apt-get install -yq sqlite3 && \
+        rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/cargo/bin/arti /usr/local/bin/
 
-RUN groupadd --gid "${ARTI_GID}" "${ARTI_GROUP}" && \
+RUN groupadd --gid 1000 arti && \
     useradd \
-        --home-dir "/home/${ARTI_USER}" \
+        --home-dir /home/arti \
         --create-home \
-        --gid "${ARTI_GID}" \
-        --uid "${ARTI_UID}" \
-        "${ARTI_USER}"
+        --gid 1000 \
+        --uid 1000 \
+        arti
 
-COPY arti.toml /home/${ARTI_USER}/arti.toml
-RUN chown -R ${ARTI_USER}:${ARTI_GROUP} /home/${ARTI_USER}
-RUN chmod 640 /home/${ARTI_USER}/arti.toml
+COPY arti.toml /home/arti
+RUN chown -R arti:arti /home/arti && \
+    chmod 640 /home/arti/arti.toml
 
 EXPOSE 9050 1053
 
-USER "${ARTI_UID}:${ARTI_GID}"
+USER arti
 
-WORKDIR "/home/${ARTI_USER}"
-
-ENTRYPOINT exec arti proxy -c ${ARTI_CONFIG}
+ENTRYPOINT exec arti proxy -c "$ARTI_CONFIG"

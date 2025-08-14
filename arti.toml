@@ -1,26 +1,14 @@
 [application]
-
 #permit_debugging = false
 
 [proxy]
-# Default port to use when listening to SOCKS connections.  We always
-# listen on localhost.
-#
-# Note that only one process can listen on a given port at a time.
 socks_listen = 9050
-
 # Port to use to listen for DNS requests.  0 means disabled.
-#dns_listen = 0
 dns_listen = 1053
 
 [logging]
 #console=info
 
-# Locations to use for storing things on disk.
-#
-# These paths can use ~ to indicate the user's home directory, or a set
-# of shell-style variables to indicate platform-specific paths.
-#
 # Supported variables are ARTI_CACHE, ARTI_CONFIG, ARTI_SHARED_DATA,
 # ARTI_LOCAL_DATA, and USER_HOME.
 #

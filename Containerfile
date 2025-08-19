@@ -13,8 +13,6 @@ RUN cargo install arti --features=static-sqlite
 # production stage
 FROM containers.torproject.org/tpo/tpa/base-images/debian:trixie AS arti
 
-ENV ARTI_CONFIG="${ARTI_CONFIG:-/home/arti/arti.toml}"
-
 WORKDIR "/home/arti"
 
 RUN apt-get update && \
@@ -39,4 +37,4 @@ EXPOSE 9050 1053
 
 USER arti
 
-ENTRYPOINT exec arti proxy -c "$ARTI_CONFIG"
+ENTRYPOINT exec arti proxy -c /home/arti/arti.toml

@@ -3,7 +3,7 @@
 podman run \
     --rm \
     --name arti-container \
-    --network podman \
-    -p 127.0.0.1:9050:9050 \
-    -p 127.0.0.1:1053:1053 \
+    --network host \
+    --publish 127.0.0.1:9050:9050 \
+    --mount type=volume,src=arti,target=/home/arti/.cache/arti \
     -t arti-container
